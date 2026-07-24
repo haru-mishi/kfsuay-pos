@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kfsuay
+      POSTGRES_PASSWORD: kfsuay
+      POSTGRES_DB: kfsuay
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kfsuay"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://kfsuay:kfsuay@db:5432/kfsuay
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
