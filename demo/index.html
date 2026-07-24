@@ -5,38 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KFSuay Register — POS Concurrency Demo</title>
 <!--
-  DIRECTION CONTRACT (KFSuay Register — extended with cart + QR receipt)
-  THESIS: This has to read as an actual restaurant POS terminal first — two prior
-  abstract directions (radar scope, kitchen ticket wheel) proved the mechanism but
-  never looked like point-of-sale software; the user pinned a real POS terminal
-  photo as the visual authority, then asked for real menu art, a proper cart, and
-  a confirm-order QR receipt on top of that register.
-  OWN-WORLD: Bright register-software surface (light ground, white cards, soft
-  elevation), four saturated named tile colors with original flat-illustration
-  icons, a cart-then-confirm ordering flow, a QR/receipt modal on confirm, and a
-  visually separate dark "DEMO CONTROLS" panel for the rush/reset actions so the
-  register itself never pretends to ship a "simulate rush" button.
-  STORY: Visitor taps menu tiles to build a cart, hits CONFIRM ORDER, watches each
-  line submit as a real order and (if any succeeded) gets a QR-coded receipt.
-  DEMO CONTROLS separately lets them fire a 30-order rush at the one
-  stock-constrained item and watch it sell out live, or reset it for another take.
-  FIRST VIEWPORT: header (branding + live clock), 2x2 item-tile grid left/center,
-  cart + receipt/order-log panel right, demo-controls panel tucked bottom-right.
-  FORM: real-POS register, user-pinned direction (brief overrides prior rolls).
+  DIRECTION CONTRACT (KFSuay Register — KFC-coded redesign)
+  THESIS: "KFSuay" is a pun (KFC + Thai "suay"/unlucky) — the register should
+  genuinely feel like KFC by color/weight/motif, never by copying KFC's actual
+  logo, wordmark, or the Colonel's likeness. Refuses both the earlier abstract
+  demo-tool worlds and the generic rainbow-tile register that came after them.
+  OWN-WORLD: Red/white/near-black QSR register — one brand red carries the whole
+  identity (The One-Red Rule), heavy-weight display type, white cards with a red
+  top stripe, original icons re-inked red/black, a subtle diagonal stripe texture
+  on the flagship bucket tile. "Declined" status moves off red to near-black so it
+  never competes with the brand color.
+  STORY: Same cart → CONFIRM ORDER → QR-receipt flow as before, now in KFC dress.
+  The concurrency-demo controls (the actual engineering point) are fully hidden
+  behind a small neutral icon rather than standing on screen — a deliberate first
+  for this project, confirmed with the user since it's still reachable, not gone.
+  FIRST VIEWPORT: solid red header (branding + live clock), 2x2 item-tile grid
+  left/center, cart + receipt/order-log panel right, a small gray icon
+  bottom-right (not red — deliberately unbranded) toggling the hidden demo panel.
+  FORM: real-POS register, user-pinned KFC-coded redesign (brief overrides taste).
 -->
 <style>
   :root {
-    --bg: #f2f4f7;
+    --bg: #faf5ec;
     --surface: #ffffff;
-    --ink: #1c2430;
-    --muted: #6b7280;
-    --border: #e2e5eb;
-    --tile-bucket: #ff8a3d;
-    --tile-zabb: #2bb673;
-    --tile-box: #6c5ce7;
-    --tile-suklon: #ff5d73;
-    --success: #22c55e;
-    --reject: #ef4444;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #ecdfc9;
+    --red: #d81f26;
+    --red-deep: #a5161b;
+    --success: #1f9d55;
+    --declined: #1a1a1a;
     --demo-bg: #1c2430;
     --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
@@ -58,14 +56,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--surface);
-    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
-    padding: 18px 28px;
+    background: var(--red);
+    box-shadow: 0 4px 14px rgba(26, 26, 26, 0.15);
+    padding: 16px 28px;
     z-index: 1;
   }
-  header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
-  header .branch { font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-left: 8px; }
-  #clock { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+  header .brand { display: flex; align-items: center; gap: 10px; }
+  header .brand svg { width: 30px; height: 30px; }
+  header h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.01em; margin: 0; color: #fff; }
+  header .branch { font-size: 0.85rem; font-weight: 600; color: rgba(255, 255, 255, 0.8); margin-left: 8px; }
+  #clock { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.85); }
 
   main {
     flex: 1;
@@ -85,40 +85,54 @@
 
   .tile {
     border: none;
-    border-radius: 18px;
-    color: #fff;
+    border-top: 6px solid var(--red);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--ink);
     padding: 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-start;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
+    box-shadow: 0 4px 14px rgba(26, 26, 26, 0.08);
     transition: box-shadow 0.15s, transform 0.08s, opacity 0.2s;
     font-family: var(--sans);
     text-align: left;
   }
-  .tile:active { box-shadow: 0 2px 6px rgba(20, 24, 33, 0.12); transform: scale(0.98); }
+  .tile:active { box-shadow: 0 2px 6px rgba(26, 26, 26, 0.12); transform: scale(0.98); }
   .tile .dish-icon { width: 44px; height: 44px; }
-  .tile .name { font-size: 1.05rem; font-weight: 700; margin-top: 10px; }
-  .tile .price { font-size: 0.95rem; font-weight: 600; opacity: 0.9; margin-top: 2px; }
+  .tile .name { font-size: 1.05rem; font-weight: 800; margin-top: 10px; }
+  .tile .price {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--red);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-top: 6px;
+  }
   .tile .badge {
     align-self: flex-end;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.03em;
-    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    background: var(--red);
     padding: 4px 10px;
     border-radius: 999px;
     margin-top: 10px;
   }
-  .tile .badge.sold-out { background: var(--reject); }
-  .tile.sold-out { opacity: 0.75; }
+  .tile .badge.sold-out { background: var(--declined); }
+  .tile.sold-out { opacity: 0.6; }
 
-  .tile-bucket { background: var(--tile-bucket); }
-  .tile-zabb { background: var(--tile-zabb); }
-  .tile-box { background: var(--tile-box); }
-  .tile-suklon { background: var(--tile-suklon); }
+  /* ponytail: flagship item only — a subtle bucket-liner stripe texture,
+     the one deliberate KFC-motif flourish, not applied to every tile so it
+     stays a signal rather than wallpaper. */
+  .tile-bucket {
+    background: repeating-linear-gradient(45deg, #fff 0 16px, #fdecec 16px 20px);
+  }
 
   .side {
     flex: 1;
@@ -176,7 +190,7 @@
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.03em;
-    background: var(--success);
+    background: var(--red);
     color: #fff;
     border: none;
     border-radius: 999px;
@@ -232,11 +246,28 @@
   .receipt-line .time { color: var(--muted); font-size: 0.75rem; }
   .receipt-line .status { font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
   .receipt-line .status.accepted { color: var(--success); }
-  .receipt-line .status.rejected { color: var(--reject); }
+  .receipt-line .status.rejected { color: var(--declined); }
+
+  /* ponytail: plain, unbranded (not red) so it reads as a settings
+     affordance, never as part of the register's own feature set. */
+  .demo-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 1rem;
+    box-shadow: 0 4px 14px rgba(26, 26, 26, 0.12);
+    cursor: pointer;
+  }
 
   .demo-panel {
     position: fixed;
-    bottom: 20px;
+    bottom: 64px;
     right: 20px;
     background: var(--demo-bg);
     border-radius: 14px;
@@ -247,6 +278,7 @@
     gap: 10px;
     width: 190px;
   }
+  .demo-panel.hidden { display: none; }
   .demo-panel .label {
     font-size: 0.65rem;
     letter-spacing: 0.14em;
@@ -262,7 +294,7 @@
     padding: 10px 14px;
     cursor: pointer;
   }
-  .demo-btn.rush { background: var(--tile-bucket); color: #fff; }
+  .demo-btn.rush { background: var(--red); color: #fff; }
   .demo-btn.reset { background: #2c3444; color: #fff; }
   .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -289,7 +321,7 @@
   }
   .receipt-text .rline { display: flex; justify-content: space-between; padding: 3px 0; }
   .receipt-text .rtotal { display: flex; justify-content: space-between; font-weight: 700; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
-  .declined-note { color: var(--reject); font-size: 0.8rem; margin-bottom: 12px; }
+  .declined-note { color: var(--declined); font-size: 0.8rem; margin-bottom: 12px; }
   .close-btn {
     font-family: var(--sans);
     font-weight: 700;
@@ -305,7 +337,14 @@
 </head>
 <body>
   <header>
-    <div><h1 style="display:inline">KFSuay Register</h1><span class="branch">Bangkok</span></div>
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M16 24h32l-4.5 32a4 4 0 0 1-4 3.5H24.5a4 4 0 0 1-4-3.5L16 24z" fill="#fff"/>
+        <ellipse cx="32" cy="24" rx="16" ry="4" fill="#fff"/>
+        <path d="M19 22q13-16 26 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>
+      <div><h1 style="display:inline">KFSuay</h1><span class="branch">Bangkok Register</span></div>
+    </div>
     <div id="clock">--:--:--</div>
   </header>
 
@@ -325,7 +364,8 @@
     </div>
   </main>
 
-  <div class="demo-panel">
+  <button class="demo-toggle" id="demoToggle" aria-label="Demo controls" title="Demo controls">⚙</button>
+  <div class="demo-panel hidden" id="demoPanel">
     <div class="label">DEMO CONTROLS</div>
     <button class="demo-btn rush" id="rushBtn">SIMULATE RUSH ×30</button>
     <button class="demo-btn reset" id="resetBtn">RESET STOCK</button>
@@ -351,42 +391,44 @@
   // no real food photography exists for these dishes, so nothing claims to
   // be a photo. Simple primitive shapes (ellipse/rect/path), not full
   // illustrations, since that's what a hand-authored SVG icon set needs.
+  // ponytail: re-inked from white (solid-color tiles) to red/black duotone
+  // (white cards) — same shapes as before, just recolored for the new world.
   const ICONS = {
     1: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <path d="M16 24h32l-4.5 32a4 4 0 0 1-4 3.5H24.5a4 4 0 0 1-4-3.5L16 24z" fill="#fff"/>
-      <ellipse cx="32" cy="24" rx="16" ry="4" fill="#fff"/>
-      <path d="M19 22q13-16 26 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
-      <circle cx="25" cy="18" r="6" fill="#fff"/>
-      <circle cx="34" cy="15" r="6.5" fill="#fff"/>
-      <circle cx="41" cy="19" r="5.5" fill="#fff"/>
+      <path d="M16 24h32l-4.5 32a4 4 0 0 1-4 3.5H24.5a4 4 0 0 1-4-3.5L16 24z" fill="#d81f26"/>
+      <ellipse cx="32" cy="24" rx="16" ry="4" fill="#d81f26"/>
+      <path d="M19 22q13-16 26 0" fill="none" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="25" cy="18" r="6" fill="#1a1a1a"/>
+      <circle cx="34" cy="15" r="6.5" fill="#1a1a1a"/>
+      <circle cx="41" cy="19" r="5.5" fill="#1a1a1a"/>
     </svg>`,
     2: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <ellipse cx="26" cy="26" rx="14" ry="12" fill="#fff" transform="rotate(-25 26 26)"/>
-      <rect x="32" y="34" width="7" height="20" rx="3.5" fill="#fff" transform="rotate(-25 32 34)"/>
-      <path d="M46 16c4 0 7 3 7 7 0 5-4 9-9 10 0-4 0-8 2-11 0-2-1-4 0-6z" fill="#fff"/>
-      <circle cx="49" cy="30" r="1.6" fill="#fff"/>
-      <circle cx="53" cy="27" r="1.6" fill="#fff"/>
-      <circle cx="52" cy="34" r="1.6" fill="#fff"/>
+      <ellipse cx="26" cy="26" rx="14" ry="12" fill="#d81f26" transform="rotate(-25 26 26)"/>
+      <rect x="32" y="34" width="7" height="20" rx="3.5" fill="#d81f26" transform="rotate(-25 32 34)"/>
+      <path d="M46 16c4 0 7 3 7 7 0 5-4 9-9 10 0-4 0-8 2-11 0-2-1-4 0-6z" fill="#1a1a1a"/>
+      <circle cx="49" cy="30" r="1.6" fill="#1a1a1a"/>
+      <circle cx="53" cy="27" r="1.6" fill="#1a1a1a"/>
+      <circle cx="52" cy="34" r="1.6" fill="#1a1a1a"/>
     </svg>`,
     3: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <rect x="16" y="28" width="32" height="22" rx="3" fill="#fff"/>
-      <path d="M16 28l7-12h18l7 12z" fill="#fff" opacity="0.85"/>
+      <rect x="16" y="28" width="32" height="22" rx="3" fill="#d81f26"/>
+      <path d="M16 28l7-12h18l7 12z" fill="#1a1a1a" opacity="0.85"/>
       <rect x="29" y="28" width="6" height="22" fill="#fff" opacity="0.3"/>
     </svg>`,
     4: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <ellipse cx="32" cy="30" rx="16" ry="14" fill="#fff"/>
-      <circle cx="20" cy="20" r="7" fill="#fff"/>
-      <ellipse cx="24" cy="44" rx="4" ry="9" fill="#fff" transform="rotate(-10 24 44)"/>
-      <ellipse cx="40" cy="44" rx="4" ry="9" fill="#fff" transform="rotate(10 40 44)"/>
-      <path d="M40 22c4-2 8 0 8 4s-4 5-8 3z" fill="#fff" opacity="0.85"/>
+      <ellipse cx="32" cy="30" rx="16" ry="14" fill="#d81f26"/>
+      <circle cx="20" cy="20" r="7" fill="#1a1a1a"/>
+      <ellipse cx="24" cy="44" rx="4" ry="9" fill="#1a1a1a" transform="rotate(-10 24 44)"/>
+      <ellipse cx="40" cy="44" rx="4" ry="9" fill="#1a1a1a" transform="rotate(10 40 44)"/>
+      <path d="M40 22c4-2 8 0 8 4s-4 5-8 3z" fill="#d81f26" opacity="0.85"/>
     </svg>`,
   };
 
   const MENU = [
-    { id: 1, name: 'ALL IN ONE BUCKET', price: 199, colorClass: 'tile-bucket', trackStock: true },
-    { id: 2, name: 'Chick N Share Zabb', price: 89, colorClass: 'tile-zabb' },
-    { id: 3, name: 'The Box Signature', price: 159, colorClass: 'tile-box' },
-    { id: 4, name: 'Suk Lon Jai', price: 619, colorClass: 'tile-suklon' },
+    { id: 1, name: 'ALL IN ONE BUCKET', price: 199, trackStock: true },
+    { id: 2, name: 'Chick N Share Zabb', price: 89 },
+    { id: 3, name: 'The Box Signature', price: 159 },
+    { id: 4, name: 'Suk Lon Jai', price: 619 },
   ];
   const MENU_BY_ID = Object.fromEntries(MENU.map((m) => [m.id, m]));
 
@@ -397,6 +439,8 @@
   const receiptList = document.getElementById('receiptList');
   const rushBtn = document.getElementById('rushBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const demoToggle = document.getElementById('demoToggle');
+  const demoPanel = document.getElementById('demoPanel');
   const clockEl = document.getElementById('clock');
   const modal = document.getElementById('receiptModal');
   const modalRef = document.getElementById('modalRef');
@@ -411,7 +455,7 @@
   function renderTiles() {
     MENU.forEach((item) => {
       const btn = document.createElement('button');
-      btn.className = `tile ${item.colorClass}`;
+      btn.className = `tile ${item.id === BUCKET_ITEM_ID ? 'tile-bucket' : ''}`;
       btn.innerHTML = `
         ${ICONS[item.id]}
         <div>
@@ -582,13 +626,15 @@
     } else {
       const banner = document.createElement('div');
       banner.className = 'receipt-summary';
-      banner.style.color = 'var(--reject)';
+      banner.style.color = 'var(--declined)';
       banner.textContent = 'Order could not be placed — item(s) sold out.';
       receiptList.insertBefore(banner, receiptList.firstChild);
     }
   });
 
   closeModalBtn.addEventListener('click', () => modal.close());
+
+  demoToggle.addEventListener('click', () => demoPanel.classList.toggle('hidden'));
 
   rushBtn.addEventListener('click', async () => {
     rushBtn.disabled = true;

@@ -81,23 +81,36 @@ branch-switcher is needed or realistic.
   10); the other three items are seeded at 100 and effectively never
   run out, so only that one tile carries a live stock badge.
 - The rush-simulation and reset controls must be visually set apart
-  from the ordering surface (a "demo controls" area, not styled like a
-  normal POS action) — a real register would never ship a "simulate
-  rush" button, and pretending otherwise would misrepresent what's
-  being demonstrated. Rush fires directly against the bucket item,
-  bypassing the cart (it's a stress test, not a customer order).
+  from the ordering surface and hidden from the default view — a real
+  register would never ship a "simulate rush" button. Reachable via a
+  small discreet icon (not styled like a normal POS action) that opens
+  the same dark, deliberately non-register-styled panel. Rush fires
+  directly against the bucket item, bypassing the cart (it's a stress
+  test, not a customer order).
 - No auth, no multi-item atomic backend order, no branch switching.
   Single-machine, single-operator use.
 
 ## Brand Commitments
 
-Binding visual reference: the user-supplied photo of a real touchscreen
-restaurant POS terminal (bright/light UI, rounded colorful item tiles
-with prices, a prominent primary action button, card-reader hardware
-alongside it). Build toward that register-software look, not a moody or
-abstract aesthetic. The earlier "red/orange" color note is satisfied
-naturally by a full, saturated tile palette rather than governing the
-whole system.
+Binding visual reference #1: the user-supplied photo of a real
+touchscreen restaurant POS terminal — governs the *form factor*
+(register-software composition: header, item-tile grid, cart, receipt
+panel), not the color story.
+
+Binding visual reference #2 (supersedes the multi-color tile palette):
+"KFSuay" is a pun — KFC + Thai "suay" (ซวย, unlucky) — and the register
+should feel like KFC: red/white, bucket-meal iconography, bold
+confident branding. Not a literal trademark copy (no reproduction of
+KFC's actual logo, wordmark, or the Colonel's likeness) — the palette,
+type weight, and bucket/stripe motifs evoke the category without
+copying protected assets. The earlier full-palette tile strategy
+(orange/green/purple/pink) is retired in favor of a red-led, near-white
+register.
+
+Demo controls (rush/reset) are hidden behind a small discreet icon
+rather than shown as a standing panel — the user confirmed they still
+want it reachable (it's the actual concurrency-safety proof, the real
+point of this project) but not visually part of the register.
 
 ## Evidence on Hand
 
