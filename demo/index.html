@@ -3,34 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The 86 Board — KFSuay Concurrency Demo</title>
+<title>KFSuay Register — POS Concurrency Demo</title>
 <!--
-  DIRECTION CONTRACT (The 86 Board — redesign, replaces "Approach Control")
-  THESIS: A concurrency race isn't a bar chart — it's a kitchen expo wheel where
-  tickets fire or get 86'd; refuses both the generic load-test dashboard AND the
-  prior direction's cold engineering-tool read (nothing on it said "restaurant").
-  OWN-WORLD: Warm kitchen-at-night backdrop, kraft-paper ticket stubs clipped to a
-  metal expo wheel, two stamp inks only — orange FIRED, red 86'D — chalkboard-style
-  readout panel, rail-hardware toggle switches.
-  STORY: Visitor fires a 30-ticket burst at the seeded Bangkok bucket (10 units),
-  watches each ticket resolve live on the wheel, reads FIRED/86'D/STOCK on the
-  chalkboard, sees the hub go "86'D — SOLD OUT" at zero, hits RESET to reopen.
-  FIRST VIEWPORT: full-bleed circular expo wheel centered; chalkboard readout
-  docked bottom-right; FIRE/RESET switches docked bottom-left.
-  FORM: diner expo ticket wheel — user-picked replacement for the assigned radar
-  direction, after the radar read as unrecognizable outside its own backstory.
+  DIRECTION CONTRACT (KFSuay Register — extended with cart + QR receipt)
+  THESIS: This has to read as an actual restaurant POS terminal first — two prior
+  abstract directions (radar scope, kitchen ticket wheel) proved the mechanism but
+  never looked like point-of-sale software; the user pinned a real POS terminal
+  photo as the visual authority, then asked for real menu art, a proper cart, and
+  a confirm-order QR receipt on top of that register.
+  OWN-WORLD: Bright register-software surface (light ground, white cards, soft
+  elevation), four saturated named tile colors with original flat-illustration
+  icons, a cart-then-confirm ordering flow, a QR/receipt modal on confirm, and a
+  visually separate dark "DEMO CONTROLS" panel for the rush/reset actions so the
+  register itself never pretends to ship a "simulate rush" button.
+  STORY: Visitor taps menu tiles to build a cart, hits CONFIRM ORDER, watches each
+  line submit as a real order and (if any succeeded) gets a QR-coded receipt.
+  DEMO CONTROLS separately lets them fire a 30-order rush at the one
+  stock-constrained item and watch it sell out live, or reset it for another take.
+  FIRST VIEWPORT: header (branding + live clock), 2x2 item-tile grid left/center,
+  cart + receipt/order-log panel right, demo-controls panel tucked bottom-right.
+  FORM: real-POS register, user-pinned direction (brief overrides prior rolls).
 -->
 <style>
   :root {
-    --board-bg: #170f0a;
-    --board-panel: #12241a;
-    --rail-metal: #4a3c2e;
-    --ticket-paper: #f2e6c9;
-    --stamp-fired: #ff8c1a;
-    --stamp-86: #ff3b30;
-    --chalk: #f4efe3;
-    --chalk-dim: #7d9184;
-    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Consolas, monospace;
+    --bg: #f2f4f7;
+    --surface: #ffffff;
+    --ink: #1c2430;
+    --muted: #6b7280;
+    --border: #e2e5eb;
+    --tile-bucket: #ff8a3d;
+    --tile-zabb: #2bb673;
+    --tile-box: #6c5ce7;
+    --tile-suklon: #ff5d73;
+    --success: #22c55e;
+    --reject: #ef4444;
+    --demo-bg: #1c2430;
+    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -38,318 +46,586 @@
   html, body {
     height: 100%;
     margin: 0;
-    background: radial-gradient(ellipse at 50% 42%, #2a1c0f 0%, var(--board-bg) 62%);
-    color: var(--chalk);
-    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
     overflow: hidden;
   }
 
-  body {
+  body { display: flex; flex-direction: column; }
+
+  header {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    background: var(--surface);
+    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
+    padding: 18px 28px;
+    z-index: 1;
   }
+  header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+  header .branch { font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-left: 8px; }
+  #clock { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
 
-  .wheel {
-    position: relative;
-    width: min(70vmin, 640px);
-    height: min(70vmin, 640px);
-    border-radius: 50%;
-    background: radial-gradient(circle at center, #24170a 0%, var(--board-bg) 100%);
-    border: 6px solid var(--rail-metal);
-    box-shadow:
-      inset 0 0 0 2px #2c2013,
-      0 8px 24px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-  }
-
-  .spokes {
-    position: absolute;
-    inset: 10px;
-    border-radius: 50%;
-    background: repeating-conic-gradient(
-      from 0deg,
-      var(--rail-metal) 0deg 1.4deg,
-      transparent 1.4deg 45deg
-    );
-    -webkit-mask-image: radial-gradient(circle, transparent 8%, black 9%, black 100%);
-    mask-image: radial-gradient(circle, transparent 8%, black 9%, black 100%);
-    animation: rotate 60s linear infinite;
-    opacity: 0.7;
-  }
-
-  @keyframes rotate { to { transform: rotate(360deg); } }
-
-  .hub {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 26px; height: 26px;
-    margin: -13px 0 0 -13px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #6b5844, var(--rail-metal) 70%);
-    border: 2px solid var(--stamp-fired);
-    box-shadow: 0 0 6px rgba(255, 140, 26, 0.5), 0 2px 3px rgba(0, 0, 0, 0.6);
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .hub.closed {
-    border-color: var(--stamp-86);
-    box-shadow: 0 0 10px rgba(255, 59, 48, 0.7), 0 2px 3px rgba(0, 0, 0, 0.6);
-  }
-
-  .hub.pulse { animation: pulse 0.3s ease-out; }
-  @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
-
-  .sold-out-label {
-    position: absolute;
-    top: calc(50% + 24px); left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    color: var(--stamp-86);
-    opacity: 0;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-  }
-  .sold-out-label.show { opacity: 1; }
-
-  .ticket {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 12px; height: 16px;
-    margin: -8px 0 0 -6px;
-    background: var(--ticket-paper);
-    border-radius: 2px;
-    clip-path: polygon(0 20%, 20% 0, 40% 20%, 60% 0, 80% 20%, 100% 0, 100% 100%, 0 100%);
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
-    transform: translate(var(--x0), var(--y0));
-    transition: transform 0.55s ease-out, background 0.25s, opacity 0.4s;
-  }
-  .ticket.inflight { animation: ticket-pulse 0.5s ease-in-out infinite alternate; }
-  @keyframes ticket-pulse { from { opacity: 0.6; } to { opacity: 1; } }
-
-  .ticket.enter.fired { transform: translate(0px, 0px) scale(0.55); background: var(--stamp-fired); opacity: 0.9; }
-  .ticket.enter.eightysixed {
-    transform: translate(var(--x1), var(--y1));
-    background: var(--stamp-86);
-    opacity: 0.6;
-  }
-
-  .readout-panel, .switch-panel {
-    position: fixed;
-    bottom: 24px;
-    background: linear-gradient(165deg, #1a2f21, var(--board-panel) 45%);
-    border: 2px solid var(--rail-metal);
-    border-radius: 4px;
-    padding: 16px 22px;
+  main {
+    flex: 1;
     display: flex;
     gap: 24px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 6px 16px rgba(0, 0, 0, 0.45);
+    padding: 24px 28px;
+    min-height: 0;
   }
 
-  .readout-panel::before, .readout-panel::after,
-  .switch-panel::before, .switch-panel::after {
-    content: "";
-    position: absolute;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #6b5844, var(--rail-metal) 70%);
-    top: 6px;
-  }
-  .readout-panel::before, .switch-panel::before { left: 6px; }
-  .readout-panel::after, .switch-panel::after { right: 6px; }
-
-  .readout-panel { right: 24px; }
-  .switch-panel { left: 24px; gap: 16px; }
-
-  .readout-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .readout-item .value {
-    font-size: clamp(1.1rem, 2.4vw, 1.6rem);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--chalk);
-  }
-  .readout-item.alert .value { color: var(--stamp-86); }
-  .readout-item .label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    color: var(--chalk-dim);
+  .tiles {
+    flex: 1.3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 18px;
   }
 
-  .toggle {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    background: var(--board-bg);
-    border: 1px solid var(--rail-metal);
-    border-radius: 2px;
-    padding: 12px 20px;
+  .tile {
+    border: none;
+    border-radius: 18px;
+    color: #fff;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
     cursor: pointer;
-    transition: box-shadow 0.15s, transform 0.08s;
+    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
+    transition: box-shadow 0.15s, transform 0.08s, opacity 0.2s;
+    font-family: var(--sans);
+    text-align: left;
   }
-  .toggle-fire { color: var(--stamp-86); }
-  .toggle-reset { color: var(--chalk); }
-  .toggle:hover { box-shadow: 0 0 8px rgba(255, 140, 26, 0.2); }
-  .toggle:active { transform: translateY(2px); }
-  .toggle:disabled { opacity: 0.35; cursor: not-allowed; }
+  .tile:active { box-shadow: 0 2px 6px rgba(20, 24, 33, 0.12); transform: scale(0.98); }
+  .tile .dish-icon { width: 44px; height: 44px; }
+  .tile .name { font-size: 1.05rem; font-weight: 700; margin-top: 10px; }
+  .tile .price { font-size: 0.95rem; font-weight: 600; opacity: 0.9; margin-top: 2px; }
+  .tile .badge {
+    align-self: flex-end;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-top: 10px;
+  }
+  .tile .badge.sold-out { background: var(--reject); }
+  .tile.sold-out { opacity: 0.75; }
+
+  .tile-bucket { background: var(--tile-bucket); }
+  .tile-zabb { background: var(--tile-zabb); }
+  .tile-box { background: var(--tile-box); }
+  .tile-suklon { background: var(--tile-suklon); }
+
+  .side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  .cart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
+    padding: 16px 18px;
+    flex-shrink: 0;
+  }
+  .cart h2 {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .cart-empty { font-size: 0.85rem; color: var(--muted); padding: 4px 0 8px; }
+  .cart-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.9rem;
+  }
+  .cart-line .qty-btn {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .cart-line .cart-name { flex: 1; font-weight: 600; }
+  .cart-line .cart-sub { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cart-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    padding: 10px 0 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+  }
+  .confirm-btn {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    background: var(--success);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px;
+    cursor: pointer;
+  }
+  .confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .receipt {
+    flex: 1;
+    min-height: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
+    display: flex;
+    flex-direction: column;
+  }
+  .receipt h2 {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 16px 18px 8px;
+    margin: 0;
+  }
+  .receipt-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 18px 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .receipt-summary {
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f2f4f7;
+    border: 1px solid var(--border);
+  }
+  .receipt-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  .receipt-line .desc { display: flex; flex-direction: column; }
+  .receipt-line .item { font-weight: 600; }
+  .receipt-line .time { color: var(--muted); font-size: 0.75rem; }
+  .receipt-line .status { font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
+  .receipt-line .status.accepted { color: var(--success); }
+  .receipt-line .status.rejected { color: var(--reject); }
+
+  .demo-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--demo-bg);
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(20, 24, 33, 0.25);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 190px;
+  }
+  .demo-panel .label {
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    color: #8a93a3;
+    font-weight: 700;
+  }
+  .demo-btn {
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+  .demo-btn.rush { background: var(--tile-bucket); color: #fff; }
+  .demo-btn.reset { background: #2c3444; color: #fff; }
+  .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  dialog#receiptModal {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    box-shadow: 0 12px 40px rgba(20, 24, 33, 0.3);
+    width: min(360px, 90vw);
+  }
+  dialog#receiptModal::backdrop { background: rgba(20, 24, 33, 0.45); }
+  .receipt-modal-inner { padding: 24px; text-align: center; font-family: var(--sans); }
+  .receipt-modal-inner h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .receipt-modal-inner .ref { color: var(--muted); font-size: 0.8rem; margin-bottom: 16px; }
+  .qr-holder { display: flex; justify-content: center; margin-bottom: 16px; }
+  .qr-holder svg { width: 180px; height: 180px; }
+  .receipt-text {
+    text-align: left;
+    font-size: 0.85rem;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .receipt-text .rline { display: flex; justify-content: space-between; padding: 3px 0; }
+  .receipt-text .rtotal { display: flex; justify-content: space-between; font-weight: 700; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+  .declined-note { color: var(--reject); font-size: 0.8rem; margin-bottom: 12px; }
+  .close-btn {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.85rem;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 24px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
-  <div class="wheel" id="scope">
-    <div class="spokes"></div>
-    <div class="hub" id="beacon"></div>
-    <div class="sold-out-label" id="sectorLabel">86'D — SOLD OUT</div>
+  <header>
+    <div><h1 style="display:inline">KFSuay Register</h1><span class="branch">Bangkok</span></div>
+    <div id="clock">--:--:--</div>
+  </header>
+
+  <main>
+    <div class="tiles" id="tiles"></div>
+    <div class="side">
+      <div class="cart">
+        <h2>CURRENT ORDER</h2>
+        <div id="cartLines"></div>
+        <div class="cart-total"><span>TOTAL</span><span id="cartTotal">฿0</span></div>
+        <button class="confirm-btn" id="confirmBtn" disabled>CONFIRM ORDER</button>
+      </div>
+      <div class="receipt">
+        <h2>ORDER LOG</h2>
+        <div class="receipt-list" id="receiptList"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="demo-panel">
+    <div class="label">DEMO CONTROLS</div>
+    <button class="demo-btn rush" id="rushBtn">SIMULATE RUSH ×30</button>
+    <button class="demo-btn reset" id="resetBtn">RESET STOCK</button>
   </div>
 
-  <div class="readout-panel">
-    <div class="readout-item"><span class="value" id="clearedVal">0</span><span class="label">FIRED</span></div>
-    <div class="readout-item"><span class="value" id="wavedVal">0</span><span class="label">86'D</span></div>
-    <div class="readout-item" id="stockItem"><span class="value" id="stockVal">10</span><span class="label">STOCK</span></div>
-  </div>
+  <dialog id="receiptModal">
+    <div class="receipt-modal-inner">
+      <h3>Order Confirmed</h3>
+      <div class="ref" id="modalRef"></div>
+      <div class="qr-holder" id="qrHolder"></div>
+      <div class="receipt-text" id="receiptText"></div>
+      <div class="declined-note" id="declinedNote" style="display:none"></div>
+      <button class="close-btn" id="closeModalBtn">CLOSE</button>
+    </div>
+  </dialog>
 
-  <div class="switch-panel">
-    <button class="toggle toggle-fire" id="fireBtn">FIRE ×30</button>
-    <button class="toggle toggle-reset" id="resetBtn">RESET</button>
-  </div>
-
+<script src="vendor/qrcode.js"></script>
 <script>
-  // ponytail: single fixed scenario (branch 1 / item 1, N=30) — matches the
-  // seeded demo row demo_concurrency.py already proves; generalize only if a
-  // second scenario is actually needed.
-  const BRANCH_ID = 1, ITEM_ID = 1, N = 30, SEED_STOCK = 10;
+  const BRANCH_ID = 1;
+  const BUCKET_ITEM_ID = 1;
 
-  const scope = document.getElementById('scope');
-  const beacon = document.getElementById('beacon');
-  const sectorLabel = document.getElementById('sectorLabel');
-  const clearedVal = document.getElementById('clearedVal');
-  const wavedVal = document.getElementById('wavedVal');
-  const stockVal = document.getElementById('stockVal');
-  const stockItem = document.getElementById('stockItem');
-  const fireBtn = document.getElementById('fireBtn');
+  // ponytail: original flat-illustration icons, one shape group per item —
+  // no real food photography exists for these dishes, so nothing claims to
+  // be a photo. Simple primitive shapes (ellipse/rect/path), not full
+  // illustrations, since that's what a hand-authored SVG icon set needs.
+  const ICONS = {
+    1: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M16 24h32l-4.5 32a4 4 0 0 1-4 3.5H24.5a4 4 0 0 1-4-3.5L16 24z" fill="#fff"/>
+      <ellipse cx="32" cy="24" rx="16" ry="4" fill="#fff"/>
+      <path d="M19 22q13-16 26 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="25" cy="18" r="6" fill="#fff"/>
+      <circle cx="34" cy="15" r="6.5" fill="#fff"/>
+      <circle cx="41" cy="19" r="5.5" fill="#fff"/>
+    </svg>`,
+    2: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <ellipse cx="26" cy="26" rx="14" ry="12" fill="#fff" transform="rotate(-25 26 26)"/>
+      <rect x="32" y="34" width="7" height="20" rx="3.5" fill="#fff" transform="rotate(-25 32 34)"/>
+      <path d="M46 16c4 0 7 3 7 7 0 5-4 9-9 10 0-4 0-8 2-11 0-2-1-4 0-6z" fill="#fff"/>
+      <circle cx="49" cy="30" r="1.6" fill="#fff"/>
+      <circle cx="53" cy="27" r="1.6" fill="#fff"/>
+      <circle cx="52" cy="34" r="1.6" fill="#fff"/>
+    </svg>`,
+    3: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="16" y="28" width="32" height="22" rx="3" fill="#fff"/>
+      <path d="M16 28l7-12h18l7 12z" fill="#fff" opacity="0.85"/>
+      <rect x="29" y="28" width="6" height="22" fill="#fff" opacity="0.3"/>
+    </svg>`,
+    4: `<svg class="dish-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <ellipse cx="32" cy="30" rx="16" ry="14" fill="#fff"/>
+      <circle cx="20" cy="20" r="7" fill="#fff"/>
+      <ellipse cx="24" cy="44" rx="4" ry="9" fill="#fff" transform="rotate(-10 24 44)"/>
+      <ellipse cx="40" cy="44" rx="4" ry="9" fill="#fff" transform="rotate(10 40 44)"/>
+      <path d="M40 22c4-2 8 0 8 4s-4 5-8 3z" fill="#fff" opacity="0.85"/>
+    </svg>`,
+  };
+
+  const MENU = [
+    { id: 1, name: 'ALL IN ONE BUCKET', price: 199, colorClass: 'tile-bucket', trackStock: true },
+    { id: 2, name: 'Chick N Share Zabb', price: 89, colorClass: 'tile-zabb' },
+    { id: 3, name: 'The Box Signature', price: 159, colorClass: 'tile-box' },
+    { id: 4, name: 'Suk Lon Jai', price: 619, colorClass: 'tile-suklon' },
+  ];
+  const MENU_BY_ID = Object.fromEntries(MENU.map((m) => [m.id, m]));
+
+  const tilesEl = document.getElementById('tiles');
+  const cartLinesEl = document.getElementById('cartLines');
+  const cartTotalEl = document.getElementById('cartTotal');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const receiptList = document.getElementById('receiptList');
+  const rushBtn = document.getElementById('rushBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const clockEl = document.getElementById('clock');
+  const modal = document.getElementById('receiptModal');
+  const modalRef = document.getElementById('modalRef');
+  const qrHolder = document.getElementById('qrHolder');
+  const receiptText = document.getElementById('receiptText');
+  const declinedNote = document.getElementById('declinedNote');
+  const closeModalBtn = document.getElementById('closeModalBtn');
 
-  let stock = SEED_STOCK, cleared = 0, waved = 0;
+  const tileEls = {};
+  const cart = {}; // itemId -> quantity
 
-  async function syncStock() {
-    try {
-      const res = await fetch(`/branches/${BRANCH_ID}/items/${ITEM_ID}/stock`);
-      if (res.ok) {
-        const data = await res.json();
-        stock = data.quantity_available;
-        updateReadout();
-        if (stock === 0) closeSector(); else reopenSector();
-      }
-    } catch (e) {
-      // page opened without the API reachable yet; keep the seed guess
+  function renderTiles() {
+    MENU.forEach((item) => {
+      const btn = document.createElement('button');
+      btn.className = `tile ${item.colorClass}`;
+      btn.innerHTML = `
+        ${ICONS[item.id]}
+        <div>
+          <div class="name">${item.name}</div>
+          <div class="price">฿${item.price}</div>
+        </div>
+        ${item.trackStock ? '<span class="badge" data-badge></span>' : ''}
+      `;
+      btn.addEventListener('click', () => addToCart(item.id));
+      tilesEl.appendChild(btn);
+      tileEls[item.id] = btn;
+    });
+  }
+
+  function addToCart(itemId) {
+    cart[itemId] = (cart[itemId] || 0) + 1;
+    renderCart();
+  }
+
+  function decrementCart(itemId) {
+    if (!cart[itemId]) return;
+    cart[itemId] -= 1;
+    if (cart[itemId] <= 0) delete cart[itemId];
+    renderCart();
+  }
+
+  function renderCart() {
+    const ids = Object.keys(cart);
+    if (ids.length === 0) {
+      cartLinesEl.innerHTML = '<div class="cart-empty">Tap a menu item to start an order.</div>';
+      confirmBtn.disabled = true;
+      cartTotalEl.textContent = '฿0';
+      return;
+    }
+    let total = 0;
+    cartLinesEl.innerHTML = '';
+    ids.forEach((idStr) => {
+      const id = Number(idStr);
+      const qty = cart[id];
+      const item = MENU_BY_ID[id];
+      const subtotal = qty * item.price;
+      total += subtotal;
+      const line = document.createElement('div');
+      line.className = 'cart-line';
+      line.innerHTML = `
+        <button class="qty-btn" data-decrement="${id}">−</button>
+        <span class="cart-name">${qty}× ${item.name}</span>
+        <span class="cart-sub">฿${subtotal}</span>
+      `;
+      cartLinesEl.appendChild(line);
+    });
+    cartLinesEl.querySelectorAll('[data-decrement]').forEach((btn) => {
+      btn.addEventListener('click', () => decrementCart(Number(btn.dataset.decrement)));
+    });
+    cartTotalEl.textContent = `฿${total}`;
+    confirmBtn.disabled = false;
+  }
+
+  function setStockBadge(quantity) {
+    const btn = tileEls[BUCKET_ITEM_ID];
+    const badge = btn.querySelector('[data-badge]');
+    if (quantity <= 0) {
+      badge.textContent = 'SOLD OUT';
+      badge.classList.add('sold-out');
+      btn.classList.add('sold-out');
+    } else {
+      badge.textContent = `${quantity} left`;
+      badge.classList.remove('sold-out');
+      btn.classList.remove('sold-out');
     }
   }
 
-  function updateReadout() {
-    clearedVal.textContent = cleared;
-    wavedVal.textContent = waved;
-    stockVal.textContent = stock;
-    stockItem.classList.toggle('alert', stock === 0);
+  function addReceiptLine(item, qty, accepted) {
+    const line = document.createElement('div');
+    line.className = 'receipt-line';
+    const time = new Date().toLocaleTimeString();
+    line.innerHTML = `
+      <div class="desc">
+        <span class="item">${qty}× ${item.name}</span>
+        <span class="time">${time} · ฿${qty * item.price}</span>
+      </div>
+      <span class="status ${accepted ? 'accepted' : 'rejected'}">${accepted ? 'ACCEPTED' : 'SOLD OUT'}</span>
+    `;
+    receiptList.insertBefore(line, receiptList.firstChild);
+    // ponytail: cap comfortably above one rush burst (30) so a single
+    // SIMULATE RUSH never pushes its own accepted lines out of view.
+    while (receiptList.children.length > 40) {
+      receiptList.removeChild(receiptList.lastChild);
+    }
   }
 
-  function clearBlips() {
-    scope.querySelectorAll('.ticket').forEach((b) => b.remove());
-  }
-
-  function spawnBlip(i) {
-    const r = scope.clientWidth / 2 - 10;
-    const angle = (i / N) * 2 * Math.PI + Math.random() * 0.15;
-    const x0 = Math.cos(angle) * r, y0 = Math.sin(angle) * r;
-    const x1 = Math.cos(angle) * (r + 40), y1 = Math.sin(angle) * (r + 40);
-    const el = document.createElement('div');
-    el.className = 'ticket inflight';
-    el.style.setProperty('--x0', x0 + 'px');
-    el.style.setProperty('--y0', y0 + 'px');
-    el.style.setProperty('--x1', x1 + 'px');
-    el.style.setProperty('--y1', y1 + 'px');
-    el.style.transform = `translate(${x0}px, ${y0}px)`;
-    el.style.transitionDelay = Math.random() * 80 + 'ms';
-    scope.appendChild(el);
-    return el;
-  }
-
-  function resolveBlip(el, ok) {
-    el.classList.remove('inflight');
-    el.classList.add('enter', ok ? 'fired' : 'eightysixed');
-  }
-
-  function pulseBeacon() {
-    beacon.classList.remove('pulse');
-    void beacon.offsetWidth;
-    beacon.classList.add('pulse');
-  }
-
-  function closeSector() {
-    beacon.classList.add('closed');
-    sectorLabel.classList.add('show');
-  }
-
-  function reopenSector() {
-    beacon.classList.remove('closed');
-    sectorLabel.classList.remove('show');
-  }
-
-  async function fireOrder(i) {
-    const el = spawnBlip(i);
+  async function placeOrder(item, qty) {
     let ok = false;
+    let remaining = null;
     try {
       const res = await fetch(`/branches/${BRANCH_ID}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: ITEM_ID, quantity: 1 }),
+        body: JSON.stringify({ item_id: item.id, quantity: qty }),
       });
       ok = res.ok;
       if (ok) {
         const data = await res.json();
-        stock = data.remaining_stock;
+        remaining = data.remaining_stock;
       }
     } catch (e) {
       ok = false;
     }
-    if (ok) {
-      cleared++;
-      pulseBeacon();
-    } else {
-      waved++;
-    }
-    resolveBlip(el, ok);
-    updateReadout();
-    if (stock === 0) closeSector();
+    if (ok && item.trackStock) setStockBadge(remaining);
+    addReceiptLine(item, qty, ok);
+    return { item, qty, ok };
   }
 
-  fireBtn.addEventListener('click', async () => {
-    fireBtn.disabled = true;
-    clearBlips();
-    cleared = 0;
-    waved = 0;
-    updateReadout();
+  async function syncStock() {
+    try {
+      const res = await fetch(`/branches/${BRANCH_ID}/items/${BUCKET_ITEM_ID}/stock`);
+      if (res.ok) {
+        const data = await res.json();
+        setStockBadge(data.quantity_available);
+      }
+    } catch (e) {
+      // API not reachable yet; badge stays blank until a real order syncs it
+    }
+  }
+
+  function showReceiptModal(fulfilled, declined) {
+    const orderRef = Math.floor(Date.now() % 100000).toString().padStart(5, '0');
+    const total = fulfilled.reduce((sum, l) => sum + l.qty * l.item.price, 0);
+    const timestamp = new Date().toLocaleString();
+
+    let text = `KFSuay Bangkok\nOrder #${orderRef}\n`;
+    fulfilled.forEach((l) => { text += `${l.qty}x ${l.item.name}  ฿${l.qty * l.item.price}\n`; });
+    text += `---\nTOTAL: ฿${total}\n${timestamp}`;
+
+    modalRef.textContent = `Order #${orderRef} · ${timestamp}`;
+    qrHolder.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    qrHolder.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+
+    receiptText.innerHTML = fulfilled
+      .map((l) => `<div class="rline"><span>${l.qty}× ${l.item.name}</span><span>฿${l.qty * l.item.price}</span></div>`)
+      .join('') + `<div class="rtotal"><span>TOTAL</span><span>฿${total}</span></div>`;
+
+    if (declined.length > 0) {
+      declinedNote.style.display = 'block';
+      declinedNote.textContent = `Unavailable, removed from order: ${declined.map((l) => `${l.qty}× ${l.item.name}`).join(', ')} (SOLD OUT)`;
+    } else {
+      declinedNote.style.display = 'none';
+    }
+
+    modal.showModal();
+  }
+
+  confirmBtn.addEventListener('click', async () => {
+    confirmBtn.disabled = true;
+    const lines = Object.entries(cart).map(([id, qty]) => ({ item: MENU_BY_ID[Number(id)], qty }));
+    cart && Object.keys(cart).forEach((k) => delete cart[k]);
+    renderCart();
+
+    const results = await Promise.all(lines.map((l) => placeOrder(l.item, l.qty)));
+    const fulfilled = results.filter((r) => r.ok);
+    const declined = results.filter((r) => !r.ok);
+
+    if (fulfilled.length > 0) {
+      showReceiptModal(fulfilled, declined);
+    } else {
+      const banner = document.createElement('div');
+      banner.className = 'receipt-summary';
+      banner.style.color = 'var(--reject)';
+      banner.textContent = 'Order could not be placed — item(s) sold out.';
+      receiptList.insertBefore(banner, receiptList.firstChild);
+    }
+  });
+
+  closeModalBtn.addEventListener('click', () => modal.close());
+
+  rushBtn.addEventListener('click', async () => {
+    rushBtn.disabled = true;
+    const bucket = MENU_BY_ID[BUCKET_ITEM_ID];
     const requests = [];
-    for (let i = 0; i < N; i++) requests.push(fireOrder(i));
-    await Promise.all(requests);
-    fireBtn.disabled = false;
+    for (let i = 0; i < 30; i++) requests.push(placeOrder(bucket, 1));
+    const results = await Promise.all(requests);
+    const accepted = results.filter((r) => r.ok).length;
+    const rejected = results.length - accepted;
+    // rejected requests wait on the row lock and resolve after accepted
+    // ones, so newest-first insertion buries the accepted lines below the
+    // rejected ones — a summary line keeps the actual result visible
+    // without scrolling.
+    const summary = document.createElement('div');
+    summary.className = 'receipt-summary';
+    summary.textContent = `RUSH COMPLETE — ${accepted} ACCEPTED / ${rejected} SOLD OUT`;
+    receiptList.insertBefore(summary, receiptList.firstChild);
+    rushBtn.disabled = false;
   });
 
   resetBtn.addEventListener('click', async () => {
     resetBtn.disabled = true;
-    await fetch('/admin/reset', { method: 'POST' });
-    stock = SEED_STOCK;
-    cleared = 0;
-    waved = 0;
-    clearBlips();
-    reopenSector();
-    updateReadout();
+    const res = await fetch('/admin/reset', { method: 'POST' });
+    const data = await res.json();
+    setStockBadge(data.quantity_available);
     resetBtn.disabled = false;
   });
 
-  updateReadout();
+  function tickClock() {
+    clockEl.textContent = new Date().toLocaleTimeString();
+  }
+
+  renderTiles();
+  renderCart();
   syncStock();
+  tickClock();
+  setInterval(tickClock, 1000);
 </script>
 </body>
 </html>
