@@ -77,8 +77,11 @@ user confirmed they still want it reachable — it's the real proof this
 portfolio piece exists to make.
 
 **Key Characteristics:**
-- Near-white, warm register ground (`#faf5ec`) with white cards — no
-  more per-item rainbow tiles; one brand red carries the identity.
+- Near-white, warm register ground (`#faf5ec`) behind solid brand-red
+  item tiles (white text/icons) — an early white-card-with-red-stripe
+  version read as too bright/empty and was corrected to solid red,
+  closer to how real QSR menu boards actually look. Cart and receipt
+  panels stay white/functional; the tiles are where the color lives.
 - Heavy-weight (900) display type on branding and totals — bold,
   confident, fast-food-poster energy instead of the previous world's
   restrained 700 weight.
@@ -184,26 +187,28 @@ pill-shaped.
 ## Components
 
 ### Item Tile
-- **Shape:** white card (14px radius), a brand-red top accent stripe,
-  a red price badge.
-- **Content:** icon (red/black duotone, was white-on-color before),
-  item name (heavy black), price badge in red, and — `ALL IN ONE
-  BUCKET` only — a live stock badge (`N left` in red, or `SOLD OUT` in
-  declined-ink).
-- **State:** default (white card + red stripe), pressed
-  (card-lift-active + brief scale-down), sold out (badge switches to
-  Declined Ink, tile visibly still tappable and still tries/fails —
-  never client-side disabled, since that would hide the real 409).
+- **Shape:** solid brand-red card (14px radius) — corrected from an
+  earlier white-card-with-red-stripe version that read as too bright
+  and empty; a real QSR menu board is a color block, not a white card
+  with an accent line.
+- **Content:** icon (white/black duotone, since the tile itself is now
+  red), item name (heavy white), price in a white pill badge with red
+  text (inverted for contrast against the red fill), and — `ALL IN ONE
+  BUCKET` only — a live stock badge (white pill, red text for `N left`,
+  or Declined Ink fill with white text for `SOLD OUT`).
+- **State:** default (solid red), pressed (card-lift-active + brief
+  scale-down), sold out (badge switches to Declined Ink fill, tile
+  visibly still tappable and still tries/fails — never client-side
+  disabled, since that would hide the real 409).
 - **Featured treatment:** `ALL IN ONE BUCKET` — the flagship, the one
-  stock-constrained item — gets a subtle diagonal red/white stripe
-  texture behind its icon, the one deliberate nod to bucket-meal
-  packaging.
+  stock-constrained item — gets a diagonal red/deep-red stripe texture
+  (tonal, within the red rather than introducing white), the one
+  deliberate nod to bucket-meal packaging.
 
 ### Menu Icon
-- **Style:** the same original flat-illustration SVGs as before, fills
-  changed from white to brand red (with black accent details where the
-  original used opacity), since tiles are now white cards instead of
-  solid color fills.
+- **Style:** the same original flat-illustration SVGs as before, now
+  inked white (main shapes) with near-black accent details, since tiles
+  are solid red fills rather than white cards.
 
 ### Current Order (Cart) / Receipt / QR Modal
 - **Unchanged in structure and behavior** from the previous world (see
